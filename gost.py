@@ -115,7 +115,6 @@ def process_text(encrypt_mode):
         messagebox.showerror("Ошибка", f"Программа вызвала ошибку: {e}")
 
 
-# --- Tkinter Setup ---
 root = tk.Tk()
 root.title("Алгоритм ГОСТ")
 
