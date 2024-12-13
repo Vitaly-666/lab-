@@ -1,4 +1,6 @@
-from random import randbytes
+import tkinter as tk
+from tkinter import ttk, messagebox
+import random
 
 SBOX = (
     (4, 10, 9, 2, 13, 8, 0, 14, 6, 11, 1, 12, 7, 15, 5, 3),
@@ -48,12 +50,104 @@ def decrypt(block, key):
         left, right = decryption_round(left, right, k_i)
     return (left << 32) | right
 
-key = [0xFFFFFFFF, 0x12345678, 0x00120477, 0x77AE441F, 0x81C63123, 0x99DEEEEE, 0x09502978, 0x68FA3105]
+# Генерация ключей
+def generate_key():
+    key = [int.from_bytes(random.randbytes(4), 'little') for _ in range(8)]
+    key_entry.delete(0, tk.END)
+    key_entry.insert(0, ' '.join(hex(k)[2:].zfill(8) for k in key))
+    return key
 
-def example(text, key):
-    encrypted_text=encrypt(int.from_bytes(text.encode("utf-8")), key)
-    decrypted_text=decrypt(encrypted_text, key)
-    print(f"\nТекст: {text}\nКлюч: {key}\n---\nЗашифрованный текст: {hex(encrypted_text)}\nДешифрованный текст: {decrypted_text.to_bytes(((decrypted_text.bit_length() + 7) // 8), byteorder='big').decode('utf-8')}")
+# Шифрование/дешифрование текста
+def process_text(encrypt_mode):
+    input_text = input_text_box.get("1.0", tk.END).strip()
+    if not input_text:
+        messagebox.showerror("Ошибка", "Введите текст.")
+        return
 
-example("Hello beautiful world!", [int.from_bytes(randbytes(8)) for i in range(8)])
-example("I have a dream", [int.from_bytes(randbytes(8)) for i in range(8)])
+    try:
+        key_str = key_entry.get()
+        key = [int(k, 16) for k in key_str.split()]
+        if len(key) != 8:
+            messagebox.showerror("Ошибка", "Неправильный формат. Введите 8 байтов.")
+            return
+
+        if encrypt_mode:
+            data = input_text.encode('utf-8')
+
+            padding_length = 8 - (len(data) % 8)
+            if padding_length != 8:
+                data += bytes([padding_length] * padding_length)
+
+            processed_data = b""
+            for i in range(0, len(data), 8):
+                block = int.from_bytes(data[i:i + 8], 'little')
+                processed_block = encrypt(block, key)
+                processed_data += processed_block.to_bytes(8, 'little')
+
+            # Выводим как байты
+            output_text = processed_data.hex()
+        else:  
+            try:
+                data = bytes.fromhex(input_text)
+            except ValueError:
+                messagebox.showerror("Ошибка", "Неправильный байтовый формат для дешифрования.")
+                return
+
+            processed_data = b""
+            for i in range(0, len(data), 8):
+                block = int.from_bytes(data[i:i + 8], 'little')
+                processed_block = decrypt(block, key)
+                processed_data += processed_block.to_bytes(8, 'little')
+            
+            padding_value = processed_data[-1]
+            if 1 <= padding_value <= 8:
+                processed_data = processed_data[:-padding_value]
+
+            output_text = processed_data.decode('utf-8', errors='ignore')
+
+
+        output_text_box.delete("1.0", tk.END)
+        output_text_box.insert("1.0", output_text)
+
+    except ValueError:
+        messagebox.showerror("Ошибка", "Формат: 8 чисел в байтовой форме.")
+    except Exception as e:
+        messagebox.showerror("Ошибка", f"Программа вызвала ошибку: {e}")
+
+
+# --- Tkinter Setup ---
+root = tk.Tk()
+root.title("Алгоритм ГОСТ")
+
+# Key Input
+key_label = ttk.Label(root, text="Ключ (8 чисел в байтовом формате)")
+key_label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+key_entry = ttk.Entry(root, width=50)
+key_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+
+# Кнопка генерации ключей
+generate_key_button = ttk.Button(root, text="Сгенерировать ключ", command=generate_key)
+generate_key_button.grid(row=0, column=2, padx=5, pady=5)
+
+# Ввод
+input_label = ttk.Label(root, text="Текст на вход:")
+input_label.grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
+input_text_box = tk.Text(root, height=5, width=60)
+input_text_box.grid(row=1, column=1, columnspan=2, padx=5, pady=5, sticky=tk.W)
+
+# Кнопка шифрования
+encrypt_button = ttk.Button(root, text="Зашифровать", command=lambda: process_text(True))
+encrypt_button.grid(row=2,column=0, columnspan=3, padx=5, pady=10, sticky=tk.EW)
+
+# Кнопка дешифрования
+decrypt_button = ttk.Button(root, text="Дешифровать", command=lambda: process_text(False))
+decrypt_button.grid(row=3, column=0, columnspan=3, padx=5, pady=10, sticky=tk.EW)
+
+# Вывод
+output_label = ttk.Label(root, text="Итог:")
+output_label.grid(row=4, column=0, padx=5, pady=5, sticky=tk.W)
+output_text_box = tk.Text(root, height=5, width=60)
+output_text_box.grid(row=4, column=1, columnspan=2, padx=5, pady=5, sticky=tk.W)
+
+
+root.mainloop()

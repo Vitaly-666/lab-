@@ -1,3 +1,5 @@
+import tkinter as tk
+from tkinter import messagebox
 import random
 import hashlib
 
@@ -62,24 +64,95 @@ def generate_keypair(bits):
 
 def rsa_sign(message, private_key):
     d, n = private_key
-    signature = pow(message, d, n)
+    signature = pow(hash_message(message), d, n)
     return signature
 
 def rsa_verify(message, signature, public_key):
     e, n = public_key
     decrypted_signature = pow(signature, e, n)
-    return decrypted_signature == message
+    return decrypted_signature == hash_message(message)
 
-def example(text):
-    # Генерируем приватный и публичный ключ
-    private_key, public_key = generate_keypair(1024)
-    # Подписываем сообщение
-    message = int.from_bytes(hashlib.sha256(text.encode()).digest())
+def hash_message(message):
+    return int(hashlib.sha256(message.encode()).hexdigest(), 16)
+
+def generate_private_key():
+    global public_key
+    public_key, private_key = generate_keypair(1024)
+    private_key_bytes = private_key_to_bytes(private_key)
+    public_key_bytes = public_key_to_bytes(public_key)
+    private_key_entry.delete(0, tk.END)
+    private_key_entry.insert(tk.END, private_key_bytes.hex())
+    public_key_entry.delete(0, tk.END)
+    public_key_entry.insert(tk.END, public_key_bytes.hex())
+
+def private_key_to_bytes(private_key):
+    d, n = private_key
+    return d.to_bytes(128, 'big') + n.to_bytes(128, 'big')
+
+def public_key_to_bytes(public_key):
+    e, n = public_key
+    return e.to_bytes(128, 'big') + n.to_bytes(128, 'big')
+
+def sign_message():
+    message = message_entry.get("1.0", tk.END)
+    private_key_bytes = bytes.fromhex(private_key_entry.get())
+    private_key = bytes_to_private_key(private_key_bytes)
     signature = rsa_sign(message, private_key)
-    print(f"\nТекст: {text}\n---\nПриватный ключ: {private_key}\nПубличный ключ: {public_key}\nПодпись: {signature}")
-    # Проверяем что сообщение подписано публичным ключом
-    verification_result = rsa_verify(message, signature, public_key)
-    print(f"Проверка на то что подпись принадлежит публичному ключу: {verification_result}")
+    signature_bytes = signature.to_bytes(128, 'big')
+    signature_entry.delete(0, tk.END)
+    signature_entry.insert(tk.END, signature_bytes.hex())
 
-example("Hello, this is president of Mongolia")
-example("Do not launch nukes, we arrived at peace")
+def verify_signature():
+    message = message_entry.get("1.0", tk.END)
+    signature_bytes = bytes.fromhex(signature_entry.get())
+    signature = int.from_bytes(signature_bytes, 'big')
+    public_key_bytes = bytes.fromhex(public_key_entry.get())
+    public_key = bytes_to_public_key(public_key_bytes)
+    result = rsa_verify(message, signature, public_key)
+    if result:
+        messagebox.showinfo("Верификация", "Подпись действительна")
+    else:
+        messagebox.showerror("Верификация", "Подпись не действительна")
+
+def bytes_to_private_key(private_key_bytes):
+    d = int.from_bytes(private_key_bytes[:128], 'big')
+    n = int.from_bytes(private_key_bytes[128:], 'big')
+    return (d, n)
+
+def bytes_to_public_key(public_key_bytes):
+    e = int.from_bytes(public_key_bytes[:128], 'big')
+    n = int.from_bytes(public_key_bytes[128:], 'big')
+    return (e, n)
+
+root = tk.Tk()
+root.title("RSA")
+
+message_label = tk.Label(root, text="Текст:")
+message_label.pack()
+message_entry = tk.Text(root, height=10, width=40)
+message_entry.pack()
+
+private_key_label = tk.Label(root, text="Приватный ключ:")
+private_key_label.pack()
+private_key_entry = tk.Entry(root, width=40)
+private_key_entry.pack()
+private_key_button = tk.Button(root, text="Сгенерировать приватный ключ", command=generate_private_key)
+private_key_button.pack()
+
+public_key_label = tk.Label(root, text="Публичный ключ:")
+public_key_label.pack()
+public_key_entry = tk.Entry(root, width=40)
+public_key_entry.pack()
+
+signature_label = tk.Label(root, text="Подпись:")
+signature_label.pack()
+signature_entry = tk.Entry(root, width=40)
+signature_entry.pack()
+
+sign_button = tk.Button(root, text="Подписать текст", command=sign_message)
+sign_button.pack()
+
+verify_button = tk.Button(root, text="Проверить подпись", command=verify_signature)
+verify_button.pack()
+
+root.mainloop()

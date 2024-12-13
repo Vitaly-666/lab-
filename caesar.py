@@ -1,3 +1,5 @@
+import tkinter as tk
+from tkinter import scrolledtext, messagebox
 import string
 
 # Функция шифрования
@@ -8,8 +10,8 @@ import string
 # Зашифрованный текст накапливается в переменной encrypted_text. В конце функция возвращает зашифрованный текст.
 def encrypt(text, shift):
     encrypted_text = ""
-    lang_char_count=26
-    start_chars=['A', 'a']
+    lang_char_count = 26
+    start_chars = ['A', 'a']
     for char in text:
         if char.isalpha():
             if char.isupper():
@@ -39,7 +41,7 @@ def break_cipher(text):
                         'H': 5.92, 'D': 4.32, 'L': 3.98, 'U': 2.88, 'C': 2.71, 'M': 2.61, 'F': 2.30, 'Y': 2.11,
                         'W': 2.09, 'G': 2.03, 'P': 1.82, 'B': 1.49, 'V': 1.11, 'K': 0.69, 'X': 0.17, 'Q': 0.11,
                         'J': 0.10, 'Z': 0.07}
-    letter_uppercase=string.ascii_uppercase 
+    letter_uppercase = string.ascii_uppercase 
     decrypted_text_list = []
     for shift in range(len(letter_frequency)):
         decrypted_text = decrypt(text, shift)
@@ -51,18 +53,60 @@ def break_cipher(text):
     decrypted_text_list.sort(key=lambda x: sum(abs(x[2].get(letter, 0) - letter_frequency[letter]) for letter in letter_frequency))
     return decrypted_text_list
 
-# Функция для обработки примеров шифрования и дешифрования
-def example(text, shift):
-    print(f"\nТекст:  {text}\nСдвиг: {shift}\n---")
+# Функция для обработки шифровки/дешифровки
+def process_text():
+    text = text_input.get("1.0", tk.END).strip()
+    try:
+        shift = int(shift_input.get())
+    except ValueError:
+        messagebox.showerror("Ошибка ввода", "Введите число для смещения.")
+        return
 
-    encrypted_text = encrypt(text, shift)
-    print(f"Зашифрованный текст: {encrypted_text}")
+    encrypted = encrypt(text, shift)
+    decrypted = decrypt(encrypted, shift)
+    broken = break_cipher(encrypted)
 
-    decrypted_texts = break_cipher(encrypted_text)
-    print("Дешифрование текста частотным анализом (от наиболее вероятного к наименее)\nСдвиг \tТекст")
-    for decryption in decrypted_texts[0:5]:
-        print(f"{decryption[0]} \t{decryption[1]}")
+    encrypted_output.delete("1.0", tk.END)
+    decrypted_output.delete("1.0", tk.END)
+    broken_output.delete("1.0", tk.END)
 
-# Два примера
-example("HELLO WORLD", 7)
-example("GOLDEN TICKET TO WILLY WONKA FACTORY", 11)
+    encrypted_output.insert(tk.END, encrypted)
+    decrypted_output.insert(tk.END, decrypted)
+
+    broken_output.insert(tk.END, "Смещение | Дешифрованный текст\n")
+    broken_output.insert(tk.END, "-" * 40 + "\n")
+    for shift, decrypted_text, _ in broken:
+        broken_output.insert(tk.END, f"{shift:5} | {decrypted_text}\n")
+
+
+# Cоздание основного окна
+root = tk.Tk()
+root.title("Шифт Цезаря")
+
+# Поля ввода
+tk.Label(root, text="Текст ввода:").pack()
+text_input = scrolledtext.ScrolledText(root, width=50, height=10)
+text_input.pack()
+
+tk.Label(root, text="Смещение:").pack()
+shift_input = tk.Entry(root)
+shift_input.pack()
+
+# Кнопки
+process_button = tk.Button(root, text="Обработать", command=process_text)
+process_button.pack()
+
+# Поля вывода
+tk.Label(root, text="Зашифрованный текст:").pack()
+encrypted_output = scrolledtext.ScrolledText(root, width=50, height=10)
+encrypted_output.pack()
+
+tk.Label(root, text="Дешифрованный текст:").pack()
+decrypted_output = scrolledtext.ScrolledText(root, width=50, height=10)
+decrypted_output.pack()
+
+tk.Label(root, text="Самые возможные варианты частотного анализа:").pack()
+broken_output = scrolledtext.ScrolledText(root, width=50, height=10)
+broken_output.pack()
+
+root.mainloop()
